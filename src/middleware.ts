@@ -7,7 +7,6 @@ const protectedRoutes = [
   "/dashboard",
   "/sessions",
   "/session",
-  "/schedule",
   "/settings",
   "/upload",
   "/leaderboard",

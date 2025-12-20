@@ -16,7 +16,6 @@ import {
     Clock,
     Star,
     TrendingUp,
-    Calendar,
     Settings,
     LogOut,
     Bell,
@@ -154,7 +153,6 @@ export default function DashboardPage() {
                         { icon: Upload, label: 'Talk Through', href: '/upload' },
                         { icon: BookOpen, label: 'My Sessions', href: '/sessions' },
                         { icon: Trophy, label: 'Leaderboard', href: '/leaderboard' },
-                        { icon: Calendar, label: 'Review Schedule', href: '/schedule' },
                     ].map((item) => (
                         <Link
                             key={item.label}
@@ -534,7 +532,7 @@ export default function DashboardPage() {
                             <TrendingUp className="w-5 h-5 text-amber-400" />
                             Topics to Review
                         </h3>
-                        <Link href="/schedule" className="text-sm text-purple-400 hover:underline">View All</Link>
+                        <Link href="/sessions" className="text-sm text-purple-400 hover:underline">View All</Link>
                     </div>
                     <div className="space-y-3">
                         {sessions.filter(s => s.score < 70).length === 0 ? (
