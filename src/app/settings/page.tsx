@@ -59,6 +59,7 @@ export default function SettingsPage() {
         autoPlayNext: true,
         showHints: true,
         darkMode: true,
+        language: 'en',
     });
 
     // Update local state when profile loads
@@ -75,6 +76,7 @@ export default function SettingsPage() {
                 autoPlayNext: profile.preferences?.autoPlayNext ?? true,
                 showHints: profile.preferences?.showHints ?? true,
                 darkMode: profile.preferences?.darkMode ?? true,
+                language: profile.preferences?.language || 'en',
             });
         }
     }, [profile]);
