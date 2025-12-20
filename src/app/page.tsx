@@ -105,21 +105,6 @@ export default function LandingPage() {
               <ChevronRight className="w-5 h-5" />
             </Link>
           </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
-            {[
-              { value: '10K+', label: 'Active Teachers' },
-              { value: '50K+', label: 'Sessions Completed' },
-              { value: '94%', label: 'Retention Rate' },
-              { value: '4.9★', label: 'User Rating' },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="text-3xl font-bold gradient-text">{stat.value}</div>
-                <div className="text-sm text-secondary">{stat.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Scroll Indicator */}
