@@ -16,8 +16,8 @@ async function extractTextFromFile(file: File): Promise<string> {
   }
 
   if (fileName.endsWith('.pdf')) {
-    const pdfParseModule = await import('pdf-parse');
-    const pdfParse = pdfParseModule.default || pdfParseModule;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require('pdf-parse');
     const data = await pdfParse(buffer);
     return data.text;
   }
