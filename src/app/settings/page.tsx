@@ -425,9 +425,9 @@ export default function SettingsPage() {
                                     <label className="block text-sm font-medium mb-3">Default AI Persona</label>
                                     <div className="grid md:grid-cols-3 gap-3">
                                         {[
-                                            { id: 'curious', name: 'Curious Freshman', desc: 'Easy questions' },
-                                            { id: 'skeptical', name: 'Skeptical Senior', desc: 'Medium difficulty' },
-                                            { id: 'devil', name: "Devil's Advocate", desc: 'Hard challenges' },
+                                            { id: 'curious' as const, name: 'Curious Freshman', desc: 'Easy questions' },
+                                            { id: 'challenging' as const, name: 'Skeptical Senior', desc: 'Medium difficulty' },
+                                            { id: 'supportive' as const, name: "Supportive Guide", desc: 'Encouraging feedback' },
                                         ].map((persona) => (
                                             <button
                                                 key={persona.id}
