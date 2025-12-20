@@ -226,13 +226,13 @@ export default function LearnFirstPage() {
                         {[
                             { num: 1, label: 'Upload Material', active: step === 'upload' },
                             { num: 2, label: 'Generate Notes', active: step === 'generating' },
-                            { num: 3, label: 'Study & Learn', active: step === 'study' },
+                            { num: 3, label: 'Study & Learn', active: false },
                         ].map((s, i) => (
                             <div key={s.num} className="flex items-center">
                                 <div className={`flex items-center gap-2 ${s.active ? 'text-white' : 'text-secondary'}`}>
                                     <div className={`w-8 h-8 rounded-full flex-center text-sm font-semibold ${
                                         s.active ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
-                                        step === 'study' || (step === 'generating' && s.num === 1) ? 'bg-green-500' : 'bg-white/10'
+                                        (step === 'generating' && s.num === 1) ? 'bg-green-500' : 'bg-white/10'
                                     }`}>
                                         {s.num}
                                     </div>
