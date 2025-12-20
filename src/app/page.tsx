@@ -9,15 +9,17 @@ import {
   Sparkles,
   Upload,
   MessageSquare,
-  Target,
   ChevronRight,
   Play,
   Star,
   Zap,
-  Users,
   ArrowRight,
   Menu,
-  X
+  X,
+  FileText,
+  GraduationCap,
+  Lightbulb,
+  HelpCircle,
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -32,14 +34,13 @@ export default function LandingPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex-center">
               <Brain className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold">TeachMaster AI</span>
+            <span className="text-xl font-bold">FeynLearn</span>
           </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
             <Link href="#features" className="text-secondary hover:text-white transition-colors">Features</Link>
             <Link href="#how-it-works" className="text-secondary hover:text-white transition-colors">How It Works</Link>
-            <Link href="#leaderboard" className="text-secondary hover:text-white transition-colors">Leaderboard</Link>
             <Link href="/login" className="btn btn-secondary btn-sm">Sign In</Link>
             <Link href="/login" className="btn btn-primary btn-sm">Get Started</Link>
           </div>
@@ -59,7 +60,6 @@ export default function LandingPage() {
             <div className="flex flex-col gap-4">
               <Link href="#features" className="p-2 hover:bg-white/5 rounded-lg">Features</Link>
               <Link href="#how-it-works" className="p-2 hover:bg-white/5 rounded-lg">How It Works</Link>
-              <Link href="#leaderboard" className="p-2 hover:bg-white/5 rounded-lg">Leaderboard</Link>
               <Link href="/login" className="btn btn-primary w-full">Get Started</Link>
             </div>
           </div>
@@ -78,30 +78,28 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-purple-500/20 border border-purple-500/30 rounded-full px-4 py-2 mb-8">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-purple-300">Based on the Feynman Technique</span>
+            <span className="text-sm text-purple-300">Powered by the Feynman Technique</span>
           </div>
 
           {/* Main Heading */}
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Learn by{' '}
+            Master Anything by{' '}
             <span className="gradient-text">Teaching</span>
-            <br />
-            an AI Student
           </h1>
 
           <p className="text-xl text-secondary max-w-2xl mx-auto mb-10">
-            Upload your notes, teach a curious AI, and master any subject.
-            The best way to learn is to teach—and our AI makes the perfect student.
+            Upload your study materials, learn with AI-generated notes and flashcards, 
+            then solidify your knowledge by teaching an AI student.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mb-16">
             <Link href="/login" className="btn btn-primary btn-lg glow">
               <Play className="w-5 h-5" />
-              Start Teaching Free
+              Start Learning Free
             </Link>
-            <Link href="#demo" className="btn btn-secondary btn-lg">
-              Watch Demo
+            <Link href="#how-it-works" className="btn btn-secondary btn-lg">
+              See How It Works
               <ChevronRight className="w-5 h-5" />
             </Link>
           </div>
@@ -115,64 +113,106 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Two Learning Modes Section */}
       <section id="features" className="section">
         <div className="container">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">
-              Why <span className="gradient-text">TeachMaster AI</span>?
+              Two Powerful <span className="gradient-text">Learning Modes</span>
             </h2>
             <p className="text-secondary max-w-2xl mx-auto">
-              Our AI student is designed to challenge your understanding,
-              not just nod along. Real learning happens when you explain concepts thoroughly.
+              FeynLearn combines passive learning with active teaching for maximum retention.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Learn First Mode */}
+            <div className="card card-gradient p-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex-center mb-6">
+                <BookOpen className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Learn First</h3>
+              <p className="text-secondary mb-6">
+                Upload your materials and get AI-generated study resources tailored to your content.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/20 flex-center">
+                    <FileText className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span>Comprehensive Study Notes</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/20 flex-center">
+                    <Lightbulb className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span>Interactive Flashcards</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/20 flex-center">
+                    <HelpCircle className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span>Practice Questions</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Talk Through Mode */}
+            <div className="card card-gradient p-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500 flex-center mb-6">
+                <MessageSquare className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Talk Through</h3>
+              <p className="text-secondary mb-6">
+                Teach concepts to an AI student that asks questions and challenges your understanding.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex-center">
+                    <Brain className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span>Adaptive AI Student Personas</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex-center">
+                    <Star className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span>Real-time Scoring & Feedback</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex-center">
+                    <Zap className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span>XP & Streak Tracking</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Supported Formats */}
+      <section className="section bg-white/5">
+        <div className="container">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">
+              Upload <span className="gradient-text">Any Format</span>
+            </h2>
+            <p className="text-secondary">
+              We support multiple file types and even web URLs
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-4 max-w-2xl mx-auto">
             {[
-              {
-                icon: Brain,
-                title: 'Adaptive AI Personas',
-                description: 'From confused freshman to skeptical expert—our AI adapts its challenge level to push your understanding.',
-                color: 'from-purple-500 to-purple-600',
-              },
-              {
-                icon: Upload,
-                title: 'Multi-Format Upload',
-                description: 'Upload PDFs, notes, or paste YouTube links. Our AI extracts key topics automatically.',
-                color: 'from-cyan-500 to-cyan-600',
-              },
-              {
-                icon: Target,
-                title: 'Multi-Dimensional Scoring',
-                description: 'Get scored on clarity, accuracy, depth, and patience. Know exactly where to improve.',
-                color: 'from-pink-500 to-pink-600',
-              },
-              {
-                icon: Trophy,
-                title: 'Gamified Learning',
-                description: 'Earn XP, unlock badges, climb leaderboards, and maintain teaching streaks.',
-                color: 'from-amber-500 to-amber-600',
-              },
-              {
-                icon: Zap,
-                title: 'Spaced Repetition',
-                description: 'Weak topics come back for review. Build long-term retention with smart scheduling.',
-                color: 'from-green-500 to-green-600',
-              },
-              {
-                icon: Users,
-                title: 'Study Groups',
-                description: 'Challenge friends, share notes, and compete in group leaderboards.',
-                color: 'from-blue-500 to-blue-600',
-              },
-            ].map((feature, i) => (
-              <div key={i} className="card card-gradient group cursor-pointer">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <feature.icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-secondary">{feature.description}</p>
+              { name: 'PDF', icon: '📄' },
+              { name: 'DOCX', icon: '📝' },
+              { name: 'TXT', icon: '📃' },
+              { name: 'URLs', icon: '🔗' },
+            ].map((format) => (
+              <div key={format.name} className="card px-6 py-4 flex items-center gap-3">
+                <span className="text-2xl">{format.icon}</span>
+                <span className="font-semibold">{format.name}</span>
               </div>
             ))}
           </div>
@@ -184,10 +224,10 @@ export default function LandingPage() {
         <div className="container">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">
-              How It <span className="gradient-text">Works</span>
+              How <span className="gradient-text">FeynLearn</span> Works
             </h2>
             <p className="text-secondary max-w-2xl mx-auto">
-              Three simple steps to master any subject through teaching.
+              A simple three-step process to master any subject.
             </p>
           </div>
 
@@ -197,19 +237,19 @@ export default function LandingPage() {
                 step: '01',
                 icon: Upload,
                 title: 'Upload Your Material',
-                description: 'Drop your PDF notes, paste a YouTube link, or type key topics you want to master.',
+                description: 'Drop your PDF, DOCX, TXT files or paste a URL. Our AI extracts key topics automatically.',
               },
               {
                 step: '02',
-                icon: MessageSquare,
-                title: 'Teach the AI',
-                description: 'Our AI plays a curious student, asking questions and challenging your explanations.',
+                icon: BookOpen,
+                title: 'Learn First',
+                description: 'Review AI-generated notes, flashcards, and practice questions to build foundational knowledge.',
               },
               {
                 step: '03',
-                icon: Star,
-                title: 'Track & Improve',
-                description: 'Get detailed scores, identify weak areas, and watch your mastery grow over time.',
+                icon: GraduationCap,
+                title: 'Talk Through',
+                description: 'Teach the concepts to an AI student. Explaining deepens your understanding and reveals gaps.',
               },
             ].map((item, i) => (
               <div key={i} className="relative">
@@ -227,77 +267,63 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-
-          {/* Demo Chat Preview */}
-          <div className="mt-16 max-w-2xl mx-auto">
-            <div className="card">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex-center">
-                  <Brain className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="font-semibold">AI Student</div>
-                  <div className="text-sm text-secondary">Curious Freshman Mode</div>
-                </div>
-                <div className="ml-auto badge badge-primary">
-                  <Zap className="w-3 h-3" />
-                  Live Session
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="chat-bubble chat-bubble-ai">
-                  <p>So wait, photosynthesis is just plants eating sunlight, right? Like they literally consume light as food? 🤔</p>
-                </div>
-                <div className="chat-bubble chat-bubble-user">
-                  <p>Not quite! Photosynthesis is actually a biochemical process where plants use light energy to convert CO₂ and water into glucose and oxygen. The light provides energy, but it&apos;s not &quot;eaten&quot;—it powers a chemical reaction.</p>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="badge badge-success">
-                    <Star className="w-3 h-3" />
-                    +15 pts
-                  </span>
-                  <span className="text-secondary">Great explanation! Clear and accurate.</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* Leaderboard Preview */}
-      <section id="leaderboard" className="section">
+      {/* Features Grid */}
+      <section className="section">
         <div className="container">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">
-              Top <span className="gradient-text">Teachers</span>
+              Everything You Need to <span className="gradient-text">Succeed</span>
             </h2>
-            <p className="text-secondary max-w-2xl mx-auto">
-              Compete with learners worldwide and climb the ranks.
-            </p>
           </div>
 
-          <div className="max-w-2xl mx-auto card">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              { rank: 1, name: 'Sarah Chen', score: 12450, streak: 45, avatar: 'SC' },
-              { rank: 2, name: 'Alex Rivera', score: 11280, streak: 32, avatar: 'AR' },
-              { rank: 3, name: 'Priya Patel', score: 10890, streak: 28, avatar: 'PP' },
-              { rank: 4, name: 'Marcus Johnson', score: 9750, streak: 21, avatar: 'MJ' },
-              { rank: 5, name: 'Emma Wilson', score: 9120, streak: 19, avatar: 'EW' },
-            ].map((user) => (
-              <div key={user.rank} className="leaderboard-item">
-                <div className={`leaderboard-rank ${user.rank === 1 ? 'gold' : user.rank === 2 ? 'silver' : user.rank === 3 ? 'bronze' : 'bg-white/10'}`}>
-                  {user.rank}
+              {
+                icon: Brain,
+                title: 'AI-Powered Topics',
+                description: 'Our AI automatically extracts key topics from your uploaded materials.',
+                color: 'from-purple-500 to-purple-600',
+              },
+              {
+                icon: Trophy,
+                title: 'Global Leaderboard',
+                description: 'Compete with learners worldwide and see how you rank.',
+                color: 'from-amber-500 to-amber-600',
+              },
+              {
+                icon: Zap,
+                title: 'XP & Streaks',
+                description: 'Earn XP for teaching sessions and maintain your learning streaks.',
+                color: 'from-green-500 to-green-600',
+              },
+              {
+                icon: Star,
+                title: 'Session Scoring',
+                description: 'Get scored on clarity, accuracy, and depth of your explanations.',
+                color: 'from-pink-500 to-pink-600',
+              },
+              {
+                icon: BookOpen,
+                title: 'Session History',
+                description: 'Track all your Learn First and Talk Through sessions in one place.',
+                color: 'from-cyan-500 to-cyan-600',
+              },
+              {
+                icon: MessageSquare,
+                title: 'AI Personas',
+                description: 'Choose from Curious, Challenging, or Supportive AI student personas.',
+                color: 'from-blue-500 to-blue-600',
+              },
+            ].map((feature, i) => (
+              <div key={i} className="card card-gradient group cursor-pointer">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="w-6 h-6 text-white" />
                 </div>
-                <div className="avatar">{user.avatar}</div>
-                <div className="flex-1">
-                  <div className="font-semibold">{user.name}</div>
-                  <div className="text-sm text-secondary">🔥 {user.streak} day streak</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-purple-400">{user.score.toLocaleString()}</div>
-                  <div className="text-sm text-secondary">XP</div>
-                </div>
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-secondary">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -309,14 +335,14 @@ export default function LandingPage() {
         <div className="container">
           <div className="card gradient-border text-center py-16">
             <h2 className="text-4xl font-bold mb-4">
-              Ready to <span className="gradient-text">Master</span> Any Subject?
+              Ready to <span className="gradient-text">Learn Smarter</span>?
             </h2>
             <p className="text-secondary max-w-xl mx-auto mb-8">
-              Join thousands of learners who&apos;ve discovered the power of teaching.
-              Start your first session in under 2 minutes.
+              Join FeynLearn and discover the power of learning by teaching.
+              Upload your first material in under a minute.
             </p>
             <Link href="/login" className="btn btn-primary btn-lg glow inline-flex">
-              Start Teaching Now
+              Get Started Free
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
@@ -331,15 +357,10 @@ export default function LandingPage() {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-500 flex-center">
                 <Brain className="w-4 h-4 text-white" />
               </div>
-              <span className="font-semibold">TeachMaster AI</span>
-            </div>
-            <div className="flex gap-8 text-sm text-secondary">
-              <Link href="#" className="hover:text-white transition-colors">Privacy</Link>
-              <Link href="#" className="hover:text-white transition-colors">Terms</Link>
-              <Link href="#" className="hover:text-white transition-colors">Contact</Link>
+              <span className="font-semibold">FeynLearn</span>
             </div>
             <div className="text-sm text-secondary">
-              © 2024 TeachMaster AI. All rights reserved.
+              © 2024 FeynLearn. Built with the Feynman Technique in mind.
             </div>
           </div>
         </div>
