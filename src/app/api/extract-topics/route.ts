@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { geminiFlash } from '@/lib/gemini';
 import mammoth from 'mammoth';
 
+async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  // Dynamic import to avoid issues with Node.js environment
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+  });
+  
+  const pdf = await loadingTask.promise;
+  const textParts: string[] = [];
+  
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item: { str?: string }) => item.str || '')
+      .join(' ');
+    textParts.push(pageText);
+  }
+  
+  return textParts.join('\n\n');
+}
+
 async function extractTextFromFile(file: File): Promise<string> {
   const fileName = file.name.toLowerCase();
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -16,11 +40,12 @@ async function extractTextFromFile(file: File): Promise<string> {
   }
 
   if (fileName.endsWith('.pdf')) {
-    // Dynamic import for pdf-parse to avoid ESM issues
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(buffer);
-    return data.text;
+    try {
+      return await extractTextFromPDF(buffer);
+    } catch (pdfError) {
+      console.error('PDF parsing error:', pdfError);
+      throw new Error('Could not extract text from PDF. Please try a different file format or ensure the PDF contains selectable text.');
+    }
   }
 
   // Fallback: try to read as text
@@ -146,6 +171,15 @@ async function extractTextFromUrl(url: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if API key is configured
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is not configured');
+      return NextResponse.json(
+        { error: 'AI service is not configured. Please add GEMINI_API_KEY to your environment variables.' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const url = formData.get('url') as string | null;
@@ -154,7 +188,15 @@ export async function POST(request: NextRequest) {
 
     if (file) {
       // Extract text content from the file based on its type
-      content = await extractTextFromFile(file);
+      try {
+        content = await extractTextFromFile(file);
+      } catch (fileError) {
+        console.error('File extraction error:', fileError);
+        return NextResponse.json(
+          { error: fileError instanceof Error ? fileError.message : 'Failed to extract content from file' },
+          { status: 400 }
+        );
+      }
       
       // Limit content to prevent token overflow (roughly 50k chars)
       if (content.length > 50000) {
@@ -184,7 +226,7 @@ export async function POST(request: NextRequest) {
 
     if (!content.trim()) {
       return NextResponse.json(
-        { error: 'The uploaded file appears to be empty' },
+        { error: 'The uploaded file appears to be empty or contains no readable text' },
         { status: 400 }
       );
     }
@@ -250,8 +292,25 @@ Remember: Return ONLY the JSON array, no other text or markdown formatting.`;
     return NextResponse.json({ topics: formattedTopics });
   } catch (error) {
     console.error('Topic extraction error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide more specific error messages
+    if (errorMessage.includes('API_KEY') || errorMessage.includes('API key')) {
+      return NextResponse.json(
+        { error: 'Invalid Gemini API key. Please check your GEMINI_API_KEY.' },
+        { status: 500 }
+      );
+    }
+    
+    if (errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return NextResponse.json(
+        { error: 'API rate limit exceeded. Please try again later.' },
+        { status: 429 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to extract topics. Please try again.' },
+      { error: `Failed to extract topics: ${errorMessage}` },
       { status: 500 }
     );
   }
