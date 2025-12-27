@@ -627,6 +627,41 @@ export default function SettingsPage() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Sync Stats */}
+                            <div className="card">
+                                <h3 className="text-lg font-semibold mb-4">Data Sync</h3>
+                                <p className="text-sm text-secondary mb-4">
+                                    If your XP or stats seem incorrect, you can recalculate them from your completed sessions.
+                                </p>
+                                <button 
+                                    className="btn btn-secondary"
+                                    onClick={async () => {
+                                        setSaving(true);
+                                        try {
+                                            const res = await fetch('/api/user/profile', {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ recalculate: true }),
+                                            });
+                                            if (res.ok) {
+                                                setSaveMessage('Stats recalculated successfully!');
+                                                window.location.reload();
+                                            } else {
+                                                setSaveMessage('Failed to recalculate stats');
+                                            }
+                                        } catch {
+                                            setSaveMessage('Failed to recalculate stats');
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }}
+                                    disabled={saving}
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+                                    Recalculate XP & Stats
+                                </button>
+                            </div>
                         </div>
                     )}
                 </main>

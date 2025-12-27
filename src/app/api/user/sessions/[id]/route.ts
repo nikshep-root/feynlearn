@@ -6,6 +6,7 @@ import {
   updateSession,
   completeSession,
   addMessageToSession,
+  updateStreak,
 } from "@/lib/db";
 
 // GET - Get a specific session
@@ -60,6 +61,8 @@ export async function PATCH(
         body.score || 0,
         body.xpEarned || 0
       );
+      // Update daily streak when completing a session
+      await updateStreak(session.user.id);
       return NextResponse.json({ success: true });
     }
 

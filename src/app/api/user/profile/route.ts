@@ -7,6 +7,8 @@ import {
   updateUserProfile,
   updateUserPreferences,
   updateNotificationSettings,
+  recalculateUserStats,
+  updateStreak,
 } from "@/lib/db";
 
 // GET - Get user profile
@@ -22,12 +24,54 @@ export async function GET() {
 
     // If no profile exists, create one
     if (!profile) {
-      profile = await createUserProfile(
-        session.user.id,
-        session.user.email || "",
-        session.user.name || "User",
-        session.user.image || undefined
-      );
+      try {
+        profile = await createUserProfile(
+          session.user.id,
+          session.user.email || "",
+          session.user.name || "User",
+          session.user.image || undefined
+        );
+      } catch (createError) {
+        console.error("Error creating profile:", createError);
+        // Return a minimal profile if creation fails
+        return NextResponse.json({
+          uid: session.user.id,
+          email: session.user.email || "",
+          name: session.user.name || "User",
+          avatar: session.user.image || undefined,
+          xp: 0,
+          level: 1,
+          streak: 0,
+          totalSessions: 0,
+          totalPoints: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          preferences: {
+            defaultPersona: "curious",
+            questionsPerSession: 7,
+            autoPlayNext: true,
+            showHints: true,
+            darkMode: true,
+            language: "en",
+          },
+          notifications: {
+            email: true,
+            push: true,
+            reviewReminders: true,
+            streakReminders: true,
+            weeklyDigest: false,
+          },
+        });
+      }
+    } else {
+      // Check and update streak on profile fetch (daily login check)
+      try {
+        const newStreak = await updateStreak(session.user.id);
+        profile = { ...profile, streak: newStreak };
+      } catch (streakError) {
+        console.error("Error updating streak:", streakError);
+        // Continue with existing profile data
+      }
     }
 
     return NextResponse.json(profile);
@@ -50,7 +94,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { preferences, notifications, ...profileUpdates } = body;
+    const { preferences, notifications, recalculate, ...profileUpdates } = body;
+
+    // Recalculate stats from sessions if requested
+    if (recalculate) {
+      await recalculateUserStats(session.user.id);
+      const updatedProfile = await getUserProfile(session.user.id);
+      return NextResponse.json(updatedProfile);
+    }
 
     // Update profile fields
     if (Object.keys(profileUpdates).length > 0) {

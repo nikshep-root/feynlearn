@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { geminiFlash } from '@/lib/gemini';
 import mammoth from 'mammoth';
 
+async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  // Dynamic import to avoid issues with Node.js environment
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+  });
+  
+  const pdf = await loadingTask.promise;
+  const textParts: string[] = [];
+  
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item: { str?: string }) => item.str || '')
+      .join(' ');
+    textParts.push(pageText);
+  }
+  
+  return textParts.join('\n\n');
+}
+
 async function extractTextFromFile(file: File): Promise<string> {
   const fileName = file.name.toLowerCase();
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -16,10 +40,12 @@ async function extractTextFromFile(file: File): Promise<string> {
   }
 
   if (fileName.endsWith('.pdf')) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(buffer);
-    return data.text;
+    try {
+      return await extractTextFromPDF(buffer);
+    } catch (pdfError) {
+      console.error('PDF parsing error:', pdfError);
+      throw new Error('Could not extract text from PDF. Please try a different file format.');
+    }
   }
 
   return await file.text();
@@ -27,6 +53,15 @@ async function extractTextFromFile(file: File): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if API key is configured
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is not configured');
+      return NextResponse.json(
+        { error: 'AI service is not configured. Please add GEMINI_API_KEY to your environment variables.' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const url = formData.get('url') as string | null;
@@ -159,7 +194,7 @@ Return ONLY the JSON, no other text.`;
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', responseText);
       return NextResponse.json(
-        { error: 'Failed to generate notes. Please try again.' },
+        { error: 'Failed to parse AI response. Please try again.' },
         { status: 500 }
       );
     }
@@ -173,8 +208,25 @@ Return ONLY the JSON, no other text.`;
     });
   } catch (error) {
     console.error('Notes generation error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide more specific error messages
+    if (errorMessage.includes('API_KEY') || errorMessage.includes('API key')) {
+      return NextResponse.json(
+        { error: 'Invalid Gemini API key. Please check your GEMINI_API_KEY in environment variables.' },
+        { status: 500 }
+      );
+    }
+    
+    if (errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return NextResponse.json(
+        { error: 'API rate limit exceeded. Please try again later.' },
+        { status: 429 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to generate notes. Please try again.' },
+      { error: `Failed to generate notes: ${errorMessage}` },
       { status: 500 }
     );
   }

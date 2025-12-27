@@ -1,19 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Brain, Chrome, ArrowRight, Sparkles, BookOpen, Trophy, Target } from 'lucide-react';
+import { Brain, Chrome, ArrowRight, Sparkles, BookOpen, Trophy, Target, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const searchParams = useSearchParams();
+
+    // Check for error in URL params (from NextAuth)
+    useEffect(() => {
+        const errorParam = searchParams.get('error');
+        if (errorParam) {
+            switch (errorParam) {
+                case 'OAuthSignin':
+                    setError('Error starting the sign-in process. Please try again.');
+                    break;
+                case 'OAuthCallback':
+                    setError('Error during sign-in callback. Please try again.');
+                    break;
+                case 'OAuthCreateAccount':
+                    setError('Could not create account. Please try again.');
+                    break;
+                case 'Callback':
+                    setError('Sign-in was interrupted. Please try again.');
+                    break;
+                case 'AccessDenied':
+                    setError('Access denied. You may not have permission to sign in.');
+                    break;
+                default:
+                    setError('An error occurred during sign-in. Please try again.');
+            }
+        }
+    }, [searchParams]);
 
     const handleGoogleLogin = async () => {
         setIsLoading(true);
+        setError(null);
         try {
-            await signIn('google', { callbackUrl: '/dashboard' });
+            const result = await signIn('google', { 
+                callbackUrl: '/dashboard',
+                redirect: true,
+            });
+            
+            // If we get here without redirect, something went wrong
+            if (result?.error) {
+                setError('Sign-in failed. Please try again.');
+                setIsLoading(false);
+            }
         } catch (error) {
             console.error('Login error:', error);
+            setError('An unexpected error occurred. Please try again.');
             setIsLoading(false);
         }
     };
@@ -35,9 +75,17 @@ export default function LoginPage() {
                     <h1 className="text-4xl font-bold mb-3">
                         Welcome Back
                     </h1>
-                    <p className="text-secondary mb-10">
+                    <p className="text-secondary mb-6">
                         Continue your learning journey by teaching what you know.
                     </p>
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="flex items-center gap-3 p-4 mb-6 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
+                            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <p className="text-sm">{error}</p>
+                        </div>
+                    )}
 
                     {/* Google Sign In Button */}
                     <button

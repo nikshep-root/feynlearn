@@ -105,6 +105,15 @@ export async function createUserProfile(
   const userRef = doc(db, "users", uid);
   await setDoc(userRef, newProfile);
 
+  // Welcome notification for new users (don't await to avoid blocking)
+  createNotification(
+    uid,
+    "system",
+    "👋 Welcome to FeynLearn!",
+    "Start your learning journey by creating your first study session. We're excited to have you!",
+    "/upload"
+  ).catch((err) => console.error("Failed to create welcome notification:", err));
+
   return newProfile;
 }
 
@@ -270,17 +279,65 @@ export async function completeSession(
 
   if (userSnap.exists()) {
     const userData = userSnap.data();
-    const newXp = (userData.xp || 0) + xpEarned;
+    const oldXp = userData.xp || 0;
+    const oldLevel = userData.level || 1;
+    const oldTotalSessions = userData.totalSessions || 0;
+    
+    const newXp = oldXp + xpEarned;
     const newLevel = Math.floor(newXp / 500) + 1;
+    const newTotalSessions = oldTotalSessions + 1;
 
     await updateDoc(userRef, {
       xp: newXp,
       level: newLevel,
-      totalSessions: (userData.totalSessions || 0) + 1,
+      totalSessions: newTotalSessions,
       totalPoints: (userData.totalPoints || 0) + score,
       lastActiveDate: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
+
+    // === AUTOMATIC NOTIFICATIONS ===
+    
+    // Session milestone notifications
+    const sessionMilestones = [1, 5, 10, 25, 50, 100];
+    if (sessionMilestones.includes(newTotalSessions)) {
+      const milestoneMessages: Record<number, { title: string; message: string }> = {
+        1: { title: "🎉 First Session Complete!", message: "You've completed your first learning session. Great start!" },
+        5: { title: "🌟 5 Sessions Done!", message: "You're building a great learning habit. Keep it up!" },
+        10: { title: "📚 10 Sessions Milestone!", message: "Double digits! You're becoming a dedicated learner." },
+        25: { title: "🏆 25 Sessions!", message: "Quarter century of sessions! You're on fire!" },
+        50: { title: "⭐ 50 Sessions!", message: "Halfway to 100! Your dedication is inspiring." },
+        100: { title: "💎 100 Sessions!", message: "Triple digits! You're a true learning champion!" },
+      };
+      const milestone = milestoneMessages[newTotalSessions];
+      await createNotification(uid, "achievement", milestone.title, milestone.message, "/dashboard");
+    }
+
+    // Level up notification
+    if (newLevel > oldLevel) {
+      await createNotification(
+        uid,
+        "achievement",
+        `🎮 Level ${newLevel} Reached!`,
+        `Congratulations! You've leveled up to Level ${newLevel}. Keep learning to reach even higher!`,
+        "/dashboard"
+      );
+    }
+
+    // XP milestone notifications
+    const xpMilestones = [100, 500, 1000, 2500, 5000, 10000];
+    for (const milestone of xpMilestones) {
+      if (oldXp < milestone && newXp >= milestone) {
+        await createNotification(
+          uid,
+          "achievement",
+          `💰 ${milestone} XP Earned!`,
+          `You've accumulated ${milestone} XP! Your hard work is paying off.`,
+          "/dashboard"
+        );
+        break; // Only one XP notification at a time
+      }
+    }
   }
 }
 
@@ -414,7 +471,8 @@ export async function updateStreak(uid: string): Promise<number> {
     (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  let newStreak = userData.streak || 0;
+  const oldStreak = userData.streak || 0;
+  let newStreak = oldStreak;
 
   if (diffDays === 0) {
     // Same day, no change
@@ -430,6 +488,36 @@ export async function updateStreak(uid: string): Promise<number> {
     streak: newStreak,
     lastActiveDate: new Date().toISOString(),
   });
+
+  // === AUTOMATIC STREAK NOTIFICATIONS ===
+  if (newStreak > oldStreak) {
+    const streakMilestones: Record<number, { title: string; message: string }> = {
+      3: { title: "🔥 3 Day Streak!", message: "You're on fire! 3 days of consistent learning." },
+      7: { title: "🔥 1 Week Streak!", message: "A full week of learning! You're building an amazing habit." },
+      14: { title: "🔥 2 Week Streak!", message: "Two weeks strong! Your dedication is remarkable." },
+      21: { title: "🔥 3 Week Streak!", message: "21 days - they say it takes this long to form a habit!" },
+      30: { title: "🔥 1 Month Streak!", message: "An entire month! You're a learning machine!" },
+      60: { title: "🔥 2 Month Streak!", message: "60 days of consistency. Absolutely incredible!" },
+      90: { title: "🔥 3 Month Streak!", message: "A quarter year of daily learning. You're legendary!" },
+      365: { title: "🔥 1 Year Streak!", message: "365 days! You've achieved something truly special." },
+    };
+
+    if (streakMilestones[newStreak]) {
+      const milestone = streakMilestones[newStreak];
+      await createNotification(uid, "streak", milestone.title, milestone.message, "/dashboard");
+    }
+  }
+
+  // Notify if streak was lost and reset
+  if (diffDays > 1 && oldStreak >= 3) {
+    await createNotification(
+      uid,
+      "streak",
+      "😢 Streak Lost",
+      `Your ${oldStreak} day streak has been reset. Don't worry, start fresh today!`,
+      "/dashboard"
+    );
+  }
 
   return newStreak;
 }
@@ -451,19 +539,56 @@ export async function getLeaderboard(
   limitCount: number = 10
 ): Promise<LeaderboardEntry[]> {
   const usersRef = collection(db, "users");
-  const q = query(usersRef, orderBy("xp", "desc"), limit(limitCount));
-  const snapshot = await getDocs(q);
+  // Get all users and sort manually to handle missing xp fields
+  const snapshot = await getDocs(usersRef);
 
-  return snapshot.docs.map((doc, index) => {
+  const users = snapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       uid: doc.id,
-      name: data.name,
+      name: data.name || "Anonymous",
       avatar: data.avatar,
       xp: data.xp || 0,
       level: data.level || 1,
       streak: data.streak || 0,
-      rank: index + 1,
     };
+  });
+
+  // Sort by XP descending
+  users.sort((a, b) => b.xp - a.xp);
+
+  // Add ranks and limit
+  return users.slice(0, limitCount).map((user, index) => ({
+    ...user,
+    rank: index + 1,
+  }));
+}
+
+// Recalculate user stats from sessions (for data consistency)
+export async function recalculateUserStats(uid: string): Promise<void> {
+  const sessionsRef = collection(db, "users", uid, "sessions");
+  const q = query(sessionsRef, where("status", "==", "completed"));
+  const snapshot = await getDocs(q);
+
+  let totalXp = 0;
+  let totalPoints = 0;
+  let totalSessions = 0;
+
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data();
+    totalXp += data.xpEarned || 0;
+    totalPoints += data.score || 0;
+    totalSessions += 1;
+  });
+
+  const level = Math.floor(totalXp / 500) + 1;
+
+  const userRef = doc(db, "users", uid);
+  await updateDoc(userRef, {
+    xp: totalXp,
+    totalPoints,
+    totalSessions,
+    level,
+    updatedAt: new Date().toISOString(),
   });
 }

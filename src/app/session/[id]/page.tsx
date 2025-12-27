@@ -70,6 +70,8 @@ function SessionContent() {
     const [sessionTime, setSessionTime] = useState(0);
     const [streak, setStreak] = useState(0);
     const [showTips, setShowTips] = useState(false);
+    const [dbSessionId, setDbSessionId] = useState<string | null>(null);
+    const [sessionSaved, setSessionSaved] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -98,6 +100,32 @@ function SessionContent() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // Save session when completed
+    useEffect(() => {
+        const saveCompletedSession = async () => {
+            if (sessionComplete && dbSessionId && !sessionSaved) {
+                setSessionSaved(true);
+                const xpEarned = totalScore * 2;
+                try {
+                    await fetch(`/api/user/sessions/${dbSessionId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            complete: true,
+                            score: totalScore,
+                            xpEarned: xpEarned
+                        }),
+                    });
+                    console.log('Session saved successfully');
+                } catch (error) {
+                    console.error('Failed to save session:', error);
+                }
+            }
+        };
+        
+        saveCompletedSession();
+    }, [sessionComplete, dbSessionId, totalScore, sessionSaved]);
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -111,6 +139,22 @@ function SessionContent() {
         const initSession = async () => {
             setIsLoading(true);
             try {
+                // Create a session in the database first
+                const createRes = await fetch('/api/user/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: mainTopic,
+                        subject: topicNames,
+                        content: `Teaching session for: ${topicNames}`
+                    }),
+                });
+                
+                if (createRes.ok) {
+                    const createData = await createRes.json();
+                    setDbSessionId(createData.sessionId);
+                }
+
                 const response = await fetch('/api/session/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

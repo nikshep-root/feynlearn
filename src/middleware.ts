@@ -10,6 +10,7 @@ const protectedRoutes = [
   "/settings",
   "/upload",
   "/leaderboard",
+  "/learn",
 ];
 
 // Routes that should redirect to dashboard if already authenticated

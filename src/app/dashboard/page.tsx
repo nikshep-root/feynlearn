@@ -75,16 +75,30 @@ export default function DashboardPage() {
     // Talk Through stats
     const totalTalkThroughSessions = sessions.length;
 
-    // Weekly activity data (mock based on sessions)
+    // Weekly activity data (actual current week)
     const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Get the start of the current week (Monday)
+    const startOfWeek = new Date(today);
+    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+    startOfWeek.setDate(today.getDate() - daysFromMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
     const weeklyActivity = weekDays.map((_, i) => {
+        // Calculate the date for this day of the week
+        const targetDate = new Date(startOfWeek);
+        targetDate.setDate(startOfWeek.getDate() + i);
+        const targetDateStr = targetDate.toDateString();
+        
         const daysSessions = sessions.filter(s => {
-            const date = new Date(s.createdAt);
-            return date.getDay() === (i + 1) % 7;
+            const sessionDate = new Date(s.createdAt);
+            return sessionDate.toDateString() === targetDateStr;
         });
         const daysLearnFirst = learnFirstSessions.filter(s => {
-            const date = new Date(s.createdAt);
-            return date.getDay() === (i + 1) % 7;
+            const sessionDate = new Date(s.createdAt);
+            return sessionDate.toDateString() === targetDateStr;
         });
         return Math.min(100, (daysSessions.length + daysLearnFirst.length) * 25);
     });
@@ -98,15 +112,14 @@ export default function DashboardPage() {
     ];
 
     // Daily goal (2 sessions per day - both types combined)
+    const todayStr = today.toDateString();
     const todayTalkThrough = sessions.filter(s => {
-        const today = new Date();
         const sessionDate = new Date(s.createdAt);
-        return sessionDate.toDateString() === today.toDateString();
+        return sessionDate.toDateString() === todayStr;
     }).length;
     const todayLearnFirst = learnFirstSessions.filter(s => {
-        const today = new Date();
         const sessionDate = new Date(s.createdAt);
-        return sessionDate.toDateString() === today.toDateString();
+        return sessionDate.toDateString() === todayStr;
     }).length;
     const todaySessions = todayTalkThrough + todayLearnFirst;
     const dailyGoal = 2;
