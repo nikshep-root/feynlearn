@@ -14,21 +14,23 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { topics, persona, fileName } = body;
+    const { topics, persona, fileName, content } = body;
 
     if (!topics || !Array.isArray(topics) || topics.length === 0) {
       return NextResponse.json({ error: 'Topics are required' }, { status: 400 });
     }
 
     // Create a new session in the database
-    const newSession = await createSessionInDB(
+    // createSession expects: (uid, topic, subject, content)
+    const topicString = topics.join(', ');
+    const newSessionId = await createSessionInDB(
       session.user.email,
-      topics,
+      topicString,
       persona || 'curious',
-      fileName || 'Uploaded content'
+      content || fileName || 'Uploaded content'
     );
 
-    return NextResponse.json({ sessionId: newSession.id });
+    return NextResponse.json({ sessionId: newSessionId });
   } catch (error) {
     console.error('Session creation error:', error);
     return NextResponse.json(
