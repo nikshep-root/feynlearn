@@ -1,21 +1,18 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
     Brain,
     Upload,
     FileText,
-    Youtube,
-    Link as LinkIcon,
     X,
     CheckCircle,
     Loader2,
     ArrowLeft,
     ArrowRight,
     Sparkles,
-    FileType,
-    File
 } from 'lucide-react';
 
 interface ExtractedTopic {
@@ -26,78 +23,77 @@ interface ExtractedTopic {
 }
 
 export default function UploadPage() {
-    const [dragActive, setDragActive] = useState(false);
+    const router = useRouter();
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-    const [urlInput, setUrlInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [step, setStep] = useState<'upload' | 'extracting' | 'select'>('upload');
     const [extractedTopics, setExtractedTopics] = useState<ExtractedTopic[]>([]);
     const [selectedPersona, setSelectedPersona] = useState('curious');
-
-    const handleDrag = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === 'dragenter' || e.type === 'dragover') {
-            setDragActive(true);
-        } else if (e.type === 'dragleave') {
-            setDragActive(false);
-        }
-    }, []);
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    }, []);
+    const [error, setError] = useState<string>('');
+    const [extractedContent, setExtractedContent] = useState<string>(''); // Store content for session
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            handleFile(e.target.files[0]);
-        }
-    };
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-    const handleFile = (file: File) => {
         const validTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
         if (validTypes.includes(file.type) || file.name.endsWith('.txt') || file.name.endsWith('.pdf') || file.name.endsWith('.docx')) {
             setUploadedFile(file);
+            setError('');
         } else {
-            alert('Please upload a PDF, TXT, or DOCX file');
+            setError('Please upload a PDF, TXT, or DOCX file');
         }
     };
 
     const handleExtractTopics = async () => {
+        if (!uploadedFile) {
+            setError('Please select a file first');
+            return;
+        }
+
         setStep('extracting');
         setIsProcessing(true);
+        setError('');
 
         try {
             const formData = new FormData();
-            
-            if (uploadedFile) {
-                formData.append('file', uploadedFile);
-            } else if (urlInput) {
-                formData.append('url', urlInput);
-            }
+            formData.append('file', uploadedFile);
 
-            const response = await fetch('/api/extract-topics', {
+            console.log('Uploading file:', uploadedFile.name);
+
+            const response = await fetch('/api/extract-topics-simple', {
                 method: 'POST',
                 body: formData,
             });
 
-            const data = await response.json();
+            console.log('Response status:', response.status);
+            console.log('Response content-type:', response.headers.get('content-type'));
+
+            const text = await response.text();
+            console.log('Raw response:', text.substring(0, 500));
+
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (parseError) {
+                console.error('Failed to parse JSON:', parseError);
+                throw new Error('Server returned invalid data. Check console for details.');
+            }
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to extract topics');
+                throw new Error(data.error || `Server error: ${response.status}`);
+            }
+
+            if (!data.topics || !Array.isArray(data.topics)) {
+                throw new Error('Invalid response format from server');
             }
 
             setExtractedTopics(data.topics);
+            setExtractedContent(data.content || ''); // Store the content
             setStep('select');
-        } catch (error) {
-            console.error('Error extracting topics:', error);
-            alert(error instanceof Error ? error.message : 'Failed to extract topics. Please try again.');
+        } catch (err) {
+            console.error('Upload error:', err);
+            setError(err instanceof Error ? err.message : 'Failed to process file');
             setStep('upload');
         } finally {
             setIsProcessing(false);
@@ -112,13 +108,43 @@ export default function UploadPage() {
         );
     };
 
-    const selectedCount = extractedTopics.filter(t => t.selected).length;
+    const handleStartSession = async () => {
+        const selectedTopics = extractedTopics.filter(t => t.selected);
+        if (selectedTopics.length === 0) return;
 
-    const getFileIcon = (fileName: string) => {
-        if (fileName.endsWith('.pdf')) return <FileText className="w-8 h-8 text-red-400" />;
-        if (fileName.endsWith('.docx')) return <FileType className="w-8 h-8 text-blue-400" />;
-        return <File className="w-8 h-8 text-gray-400" />;
+        setIsProcessing(true);
+        try {
+            // Create session with selected topics
+            const response = await fetch('/api/session/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topics: selectedTopics.map(t => t.name),
+                    persona: selectedPersona,
+                    fileName: uploadedFile?.name || 'Uploaded content',
+                    content: extractedContent // Pass the actual content
+                })
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create session');
+            }
+
+            // Redirect to the session page with topics AND content
+            const topicsParam = encodeURIComponent(JSON.stringify(selectedTopics));
+            const contentParam = encodeURIComponent(extractedContent.substring(0, 3000)); // Limit URL size
+            router.push(`/session/${data.sessionId}?topics=${topicsParam}&persona=${selectedPersona}&content=${contentParam}`);
+        } catch (err) {
+            console.error('Session creation error:', err);
+            alert(err instanceof Error ? err.message : 'Failed to create session');
+        } finally {
+            setIsProcessing(false);
+        }
     };
+
+    const selectedCount = extractedTopics.filter(t => t.selected).length;
 
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty) {
@@ -143,43 +169,9 @@ export default function UploadPage() {
                         <Brain className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold">Talk Through</h1>
-                        <p className="text-secondary">Upload your notes and teach an AI student to master the concepts</p>
+                        <h1 className="text-3xl font-bold">Upload & Learn</h1>
+                        <p className="text-secondary">Upload your notes and extract topics to teach</p>
                     </div>
-                </div>
-            </div>
-
-            {/* Progress Steps */}
-            <div className="max-w-4xl mx-auto mb-8">
-                <div className="flex items-center justify-between">
-                    {[
-                        { num: 1, label: 'Upload', active: step === 'upload' },
-                        { num: 2, label: 'Extract Topics', active: step === 'extracting' },
-                        { num: 3, label: 'Select & Start', active: step === 'select' },
-                    ].map((s, i) => (
-                        <div key={s.num} className="flex items-center">
-                            <div className={`flex items-center gap-3 ${s.active ? 'text-white' : 'text-secondary'}`}>
-                                <div className={`w-10 h-10 rounded-full flex-center font-semibold ${s.active ? 'bg-gradient-to-br from-purple-500 to-cyan-500' :
-                                        step === 'select' && s.num < 3 ? 'bg-green-500' : 'bg-white/10'
-                                    }`}>
-                                    {step === 'select' && s.num < 3 ? <CheckCircle className="w-5 h-5" /> : s.num}
-                                </div>
-                                <span className="hidden sm:block font-medium">{s.label}</span>
-                            </div>
-                            {i < 2 && (
-                                <div className="w-16 sm:w-32 h-0.5 mx-4 bg-white/10 rounded">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-purple-500 to-cyan-500 rounded transition-all"
-                                        style={{
-                                            width: step === 'upload' ? '0%' :
-                                                step === 'extracting' && i === 0 ? '100%' :
-                                                    step === 'select' ? '100%' : '0%'
-                                        }}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    ))}
                 </div>
             </div>
 
@@ -187,18 +179,7 @@ export default function UploadPage() {
             <div className="max-w-4xl mx-auto">
                 {step === 'upload' && (
                     <div className="space-y-6">
-                        {/* Upload Zone */}
-                        <div
-                            className={`card p-12 border-2 border-dashed transition-all cursor-pointer ${dragActive
-                                    ? 'border-purple-500 bg-purple-500/10'
-                                    : 'border-white/20 hover:border-purple-500/50'
-                                }`}
-                            onDragEnter={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDragOver={handleDrag}
-                            onDrop={handleDrop}
-                            onClick={() => document.getElementById('file-input')?.click()}
-                        >
+                        <div className="card p-12 text-center">
                             <input
                                 type="file"
                                 id="file-input"
@@ -208,84 +189,47 @@ export default function UploadPage() {
                             />
 
                             {uploadedFile ? (
-                                <div className="flex items-center justify-center gap-4">
-                                    {getFileIcon(uploadedFile.name)}
-                                    <div>
+                                <div className="flex items-center justify-center gap-4 mb-6">
+                                    <FileText className="w-8 h-8 text-blue-400" />
+                                    <div className="text-left">
                                         <div className="font-semibold">{uploadedFile.name}</div>
                                         <div className="text-sm text-secondary">
                                             {(uploadedFile.size / 1024).toFixed(1)} KB
                                         </div>
                                     </div>
                                     <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setUploadedFile(null);
-                                        }}
+                                        onClick={() => setUploadedFile(null)}
                                         className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
                             ) : (
-                                <div className="text-center">
-                                    <Upload className="w-12 h-12 mx-auto mb-4 text-purple-400" />
-                                    <p className="text-lg font-semibold mb-2">
-                                        Drop your file here, or click to browse
+                                <div
+                                    onClick={() => document.getElementById('file-input')?.click()}
+                                    className="cursor-pointer"
+                                >
+                                    <Upload className="w-16 h-16 mx-auto mb-4 text-purple-400" />
+                                    <p className="text-xl font-semibold mb-2">
+                                        Click to upload a file
                                     </p>
                                     <p className="text-secondary">
-                                        Supports PDF, TXT, and DOCX files
+                                        Supports PDF, TXT, and DOCX files (max 10MB)
                                     </p>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
+                                    {error}
                                 </div>
                             )}
                         </div>
 
-                        {/* Or Divider */}
-                        <div className="flex items-center gap-4">
-                            <div className="flex-1 h-px bg-white/10" />
-                            <span className="text-secondary">or paste a link</span>
-                            <div className="flex-1 h-px bg-white/10" />
-                        </div>
-
-                        {/* URL Input */}
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="card p-6">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex-center">
-                                        <Youtube className="w-5 h-5 text-red-400" />
-                                    </div>
-                                    <span className="font-semibold">YouTube Video</span>
-                                </div>
-                                <input
-                                    type="url"
-                                    placeholder="Paste YouTube URL..."
-                                    className="input"
-                                    value={urlInput.includes('youtube') || urlInput.includes('youtu.be') ? urlInput : ''}
-                                    onChange={(e) => setUrlInput(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="card p-6">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex-center">
-                                        <LinkIcon className="w-5 h-5 text-blue-400" />
-                                    </div>
-                                    <span className="font-semibold">Web Article</span>
-                                </div>
-                                <input
-                                    type="url"
-                                    placeholder="Paste article URL..."
-                                    className="input"
-                                    value={!urlInput.includes('youtube') && !urlInput.includes('youtu.be') ? urlInput : ''}
-                                    onChange={(e) => setUrlInput(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Continue Button */}
                         <button
                             onClick={handleExtractTopics}
-                            disabled={!uploadedFile && !urlInput}
-                            className="btn btn-primary btn-lg w-full glow disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!uploadedFile || isProcessing}
+                            className="btn btn-primary btn-lg w-full glow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             <Sparkles className="w-5 h-5" />
                             Extract Topics with AI
@@ -301,26 +245,26 @@ export default function UploadPage() {
                         </div>
                         <h2 className="text-2xl font-bold mb-3">Analyzing Your Content...</h2>
                         <p className="text-secondary mb-6">
-                            Our AI is reading through your material and extracting key topics for you to teach.
+                            Our AI is reading through your material and extracting key topics.
                         </p>
                         <div className="flex items-center justify-center gap-2 text-purple-400">
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            This usually takes 5-10 seconds
+                            This usually takes 5-15 seconds
                         </div>
                     </div>
                 )}
 
                 {step === 'select' && (
                     <div className="space-y-6">
-                        <div className="card">
+                        <div className="card p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
                                     <h2 className="text-xl font-bold mb-1">Select Topics to Teach</h2>
-                                    <p className="text-secondary">
-                                        Choose which topics you want to teach. The AI will quiz you on them.
+                                    <p className="text-secondary text-sm">
+                                        Choose which topics you want to teach
                                     </p>
                                 </div>
-                                <div className="badge badge-primary">
+                                <div className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium">
                                     {selectedCount} selected
                                 </div>
                             </div>
@@ -331,12 +275,12 @@ export default function UploadPage() {
                                         key={topic.id}
                                         onClick={() => toggleTopic(topic.id)}
                                         className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all ${topic.selected
-                                                ? 'bg-purple-500/20 border border-purple-500/50'
-                                                : 'bg-white/5 border border-transparent hover:bg-white/10'
+                                                ? 'bg-purple-500/20 border-2 border-purple-500/50'
+                                                : 'bg-white/5 border-2 border-transparent hover:bg-white/10'
                                             }`}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-6 h-6 rounded-full border-2 flex-center transition-all ${topic.selected
+                                            <div className={`w-5 h-5 rounded border-2 flex-center transition-all ${topic.selected
                                                     ? 'bg-purple-500 border-purple-500'
                                                     : 'border-white/30'
                                                 }`}>
@@ -352,14 +296,13 @@ export default function UploadPage() {
                             </div>
                         </div>
 
-                        {/* AI Persona Selection */}
-                        <div className="card">
+                        <div className="card p-6">
                             <h3 className="text-lg font-semibold mb-4">Choose AI Persona</h3>
                             <div className="grid md:grid-cols-3 gap-4">
                                 {[
-                                    { id: 'curious', name: 'Curious Freshman', desc: 'Asks basic but insightful questions', level: 'Easy' },
-                                    { id: 'skeptical', name: 'Skeptical Senior', desc: 'Challenges your explanations', level: 'Medium' },
-                                    { id: 'devil', name: "Devil's Advocate", desc: 'Argues against everything', level: 'Hard' },
+                                    { id: 'curious', name: 'Curious', desc: 'Asks basic questions' },
+                                    { id: 'challenging', name: 'Challenging', desc: 'Tests your knowledge' },
+                                    { id: 'supportive', name: 'Supportive', desc: 'Encourages learning' },
                                 ].map((persona) => (
                                     <div
                                         key={persona.id}
@@ -370,23 +313,20 @@ export default function UploadPage() {
                                             }`}
                                     >
                                         <div className="font-semibold mb-1">{persona.name}</div>
-                                        <div className="text-sm text-secondary mb-2">{persona.desc}</div>
-                                        <div className={`text-xs inline-block px-2 py-1 rounded ${getDifficultyColor(persona.level.toLowerCase())}`}>
-                                            {persona.level}
-                                        </div>
+                                        <div className="text-sm text-secondary">{persona.desc}</div>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Start Session Button */}
-                        <Link
-                            href={`/session/new?topics=${encodeURIComponent(JSON.stringify(extractedTopics.filter(t => t.selected)))}&persona=${selectedPersona}`}
-                            className="btn btn-primary btn-lg w-full glow"
+                        <button
+                            onClick={handleStartSession}
+                            disabled={selectedCount === 0}
+                            className="btn btn-primary btn-lg w-full glow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             Start Teaching Session
                             <ArrowRight className="w-5 h-5" />
-                        </Link>
+                        </button>
                     </div>
                 )}
             </div>

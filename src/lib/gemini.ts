@@ -2,11 +2,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-// Default model - Gemini 2.0 Flash (fast & efficient)
+// Default model - Gemini 2.0 Flash (working model)
 export const geminiFlash = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-// For more complex tasks - Gemini 1.5 Pro
-export const geminiPro = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+// For more complex tasks
+export const geminiPro = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 // Helper function for simple text generation
 export async function generateText(prompt: string, useProModel = false) {

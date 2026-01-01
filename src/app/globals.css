@@ -62,6 +62,9 @@
   /* Typography */
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
+
+  /* Safe Areas for mobile */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ============================================
@@ -257,6 +260,11 @@ body {
 
 .glow {
   box-shadow: var(--shadow-glow);
+}
+
+/* Safe area for mobile devices with notch/home indicator */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .animate-float {

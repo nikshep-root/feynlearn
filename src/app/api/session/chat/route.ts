@@ -5,11 +5,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, topic, persona } = await request.json();
+    const { messages, topic, persona, uploadedContent } = await request.json();
 
     if (!topic) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
     }
+
+    // Include uploaded content context if available
+    const contentContext = uploadedContent 
+      ? `\n\nREFERENCE MATERIAL (this is the actual content the teacher uploaded):\n${uploadedContent.substring(0, 2000)}\n\nIMPORTANT: Ask questions SPECIFICALLY about concepts, terms, or information from this reference material.` 
+      : '';
 
     // Build persona instruction based on selected persona
     let personaInstruction = '';
@@ -20,7 +25,7 @@ export async function POST(request: NextRequest) {
 - Point out logical inconsistencies  
 - Ask "why" and "how do you know that"
 - Are harder to convince but respectful
-- Sometimes play devil's advocate`;
+- Sometimes play devil's advocate${contentContext}`;
         break;
       case 'devil':
         personaInstruction = `You are playing devil's advocate while learning about "${topic}". You:
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
 - Present counter-arguments and edge cases
 - Ask about exceptions to rules
 - Push back hard but stay educational
-- Make the teacher really prove they understand`;
+- Make the teacher really prove they understand${contentContext}`;
         break;
       default: // curious
         personaInstruction = `You are a curious freshman student learning about "${topic}". You:
@@ -36,7 +41,7 @@ export async function POST(request: NextRequest) {
 - Sometimes have misconceptions that need correcting
 - Show enthusiasm when you understand something
 - Request examples and analogies
-- Summarize what you learned to confirm understanding`;
+- Summarize what you learned to confirm understanding${contentContext}`;
     }
 
     const systemInstruction = `${personaInstruction}
@@ -48,12 +53,40 @@ IMPORTANT RULES:
 4. If the explanation is good, acknowledge it then ask a follow-up
 5. If the explanation is unclear or wrong, express confusion and ask for clarification
 6. Stay on topic about "${topic}"
-7. Be conversational and natural, like a real student`;
+7. Be conversational and natural, like a real student
+8. ALWAYS ask a specific question about "${topic}" - never give generic responses`;
 
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash",
       systemInstruction
     });
+
+    // Check if this is the first message to start the conversation
+    const lastMessage = messages[messages.length - 1];
+    const isStartingConversation = lastMessage.content.includes('Start the conversation');
+
+    if (isStartingConversation) {
+      // Generate a specific first question about the topic using the actual content
+      const contentHint = uploadedContent 
+        ? `\n\nHere is the actual study material content:\n${uploadedContent.substring(0, 1500)}\n\nAsk about a SPECIFIC concept, term, or fact from this content.`
+        : '';
+      
+      const firstQuestionPrompt = `You are a student who wants to learn about "${topic}".${contentHint}
+      
+Ask a specific, interesting opening question about this topic. Be curious and eager to learn.
+The question should be directly related to "${topic}" and if study material is provided, reference specific details from it.
+
+Keep it short (1-2 sentences) with an emoji. Don't explain anything, just ask your question.`;
+
+      const result = await model.generateContent(firstQuestionPrompt);
+      const responseText = result.response.text();
+
+      return NextResponse.json({
+        message: responseText,
+        score: 0,
+        feedback: ""
+      });
+    }
 
     // Build chat history - filter out messages and ensure it starts with user
     const historyMessages = messages.slice(0, -1).map((msg: { role: string; content: string }) => ({
@@ -72,10 +105,9 @@ IMPORTANT RULES:
     // If history is empty or only has one message, just do a simple generation
     const chat = model.startChat({ history: history.length > 0 ? history : [] });
 
-    // Get the latest user message
-    const lastMessage = messages[messages.length - 1];
-    const result = await chat.sendMessage(lastMessage.content);
-    const responseText = result.response.text();
+    // Get the latest user message (use already defined lastMessage)
+    const chatResult = await chat.sendMessage(lastMessage.content);
+    const responseText = chatResult.response.text();
 
     // Generate a score for the user's explanation (1-20)
     const scorePrompt = `Rate this explanation about "${topic}" on a scale of 1-20 based on clarity, accuracy, and helpfulness. 

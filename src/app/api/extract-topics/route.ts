@@ -2,54 +2,91 @@ import { NextRequest, NextResponse } from 'next/server';
 import { geminiFlash } from '@/lib/gemini';
 import mammoth from 'mammoth';
 
+// Configure route for larger file uploads (App Router format)
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds max
+
+// OCR fallback for scanned/image-based PDFs
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  // Dynamic import to avoid issues with Node.js environment
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  
-  const loadingTask = pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
-  });
-  
-  const pdf = await loadingTask.promise;
-  const textParts: string[] = [];
-  
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: { str?: string }) => item.str || '')
-      .join(' ');
-    textParts.push(pageText);
+  try {
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const Tesseract = (await import('tesseract.js')).default;
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      useSystemFonts: true,
+    });
+    const pdf = await loadingTask.promise;
+    const textParts: string[] = [];
+    let extractedText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: { str?: string }) => item.str || '')
+        .join(' ');
+      textParts.push(pageText);
+    }
+    extractedText = textParts.join('\n\n').trim();
+
+    // If extracted text is empty or too short, try OCR fallback
+    if (!extractedText || extractedText.replace(/\s/g, '').length < 20) {
+      try {
+        const { createCanvas } = await import('canvas');
+        let ocrText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = createCanvas(viewport.width, viewport.height);
+          const context = canvas.getContext('2d');
+          const renderContext = { canvasContext: context, canvas, viewport };
+          await page.render(renderContext).promise;
+          const imageBuffer = canvas.toBuffer('image/png');
+          const { data: { text } } = await Tesseract.recognize(imageBuffer, 'eng');
+          ocrText += text + '\n';
+        }
+        extractedText = ocrText.trim();
+      } catch (ocrError) {
+        console.error('OCR fallback failed:', ocrError);
+        throw new Error('Scanned PDF OCR is not available on this server. Please use a text-based PDF or try again later.');
+      }
+    }
+    return extractedText;
+  } catch (err) {
+    console.error('PDF extraction error:', err);
+    throw new Error('Could not extract text from PDF. Details: ' + (err instanceof Error ? err.message : String(err)));
   }
-  
-  return textParts.join('\n\n');
 }
 
 async function extractTextFromFile(file: File): Promise<string> {
-  const fileName = file.name.toLowerCase();
-  const buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    const fileName = file.name.toLowerCase();
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-  if (fileName.endsWith('.txt')) {
-    return await file.text();
-  }
-
-  if (fileName.endsWith('.docx')) {
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
-  }
-
-  if (fileName.endsWith('.pdf')) {
-    try {
-      return await extractTextFromPDF(buffer);
-    } catch (pdfError) {
-      console.error('PDF parsing error:', pdfError);
-      throw new Error('Could not extract text from PDF. Please try a different file format or ensure the PDF contains selectable text.');
+    if (fileName.endsWith('.txt')) {
+      return await file.text();
     }
-  }
 
-  // Fallback: try to read as text
-  return await file.text();
+    if (fileName.endsWith('.docx')) {
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    }
+
+    if (fileName.endsWith('.pdf')) {
+      try {
+        return await extractTextFromPDF(buffer);
+      } catch (pdfError) {
+        console.error('PDF parsing error:', pdfError);
+        throw new Error('Could not extract text from PDF. Please try a different file format or ensure the PDF contains selectable text.');
+      }
+    }
+
+    // Unsupported file type
+    throw new Error('Unsupported file type. Please upload a .pdf, .docx, or .txt file.');
+  } catch (err) {
+    console.error('File extraction error:', err);
+    throw new Error('Failed to extract content from file: ' + (err instanceof Error ? err.message : String(err)));
+  }
 }
 
 function isYouTubeUrl(url: string): boolean {
@@ -171,68 +208,49 @@ async function extractTextFromUrl(url: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if API key is configured
-    if (!process.env.GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY is not configured');
-      return NextResponse.json(
-        { error: 'AI service is not configured. Please add GEMINI_API_KEY to your environment variables.' },
-        { status: 500 }
-      );
-    }
-
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    const url = formData.get('url') as string | null;
-
-    let content = '';
-
-    if (file) {
-      // Extract text content from the file based on its type
-      try {
-        content = await extractTextFromFile(file);
-      } catch (fileError) {
-        console.error('File extraction error:', fileError);
+    try {
+      // All logic in a single try block to catch any error and always return JSON
+      // Check if API key is configured
+      if (!process.env.GEMINI_API_KEY) {
+        console.error('GEMINI_API_KEY is not configured');
         return NextResponse.json(
-          { error: fileError instanceof Error ? fileError.message : 'Failed to extract content from file' },
-          { status: 400 }
+          { error: 'AI service is not configured. Please add GEMINI_API_KEY to your environment variables.' },
+          { status: 500 }
         );
       }
-      
-      // Limit content to prevent token overflow (roughly 50k chars)
-      if (content.length > 50000) {
-        content = content.substring(0, 50000);
-      }
-    } else if (url) {
-      // Extract content from URL (web page or YouTube)
-      try {
-        content = await extractTextFromUrl(url);
-        
-        // Limit content to prevent token overflow
+
+      const formData = await request.formData();
+      const file = formData.get('file') as File | null;
+      const url = formData.get('url') as string | null;
+
+      let content = '';
+
+      if (file) {
+        content = await extractTextFromFile(file);
         if (content.length > 50000) {
           content = content.substring(0, 50000);
         }
-      } catch (urlError) {
+      } else if (url) {
+        content = await extractTextFromUrl(url);
+        if (content.length > 50000) {
+          content = content.substring(0, 50000);
+        }
+      } else {
         return NextResponse.json(
-          { error: urlError instanceof Error ? urlError.message : 'Failed to extract content from URL' },
+          { error: 'No file or URL provided' },
           { status: 400 }
         );
       }
-    } else {
-      return NextResponse.json(
-        { error: 'No file or URL provided' },
-        { status: 400 }
-      );
-    }
 
-    if (!content.trim()) {
-      return NextResponse.json(
-        { error: 'The uploaded file appears to be empty or contains no readable text' },
-        { status: 400 }
-      );
-    }
+      if (!content.trim()) {
+        return NextResponse.json(
+          { error: 'The uploaded file appears to be empty or contains no readable text' },
+          { status: 400 }
+        );
+      }
 
-    // Use Gemini to extract topics from the content
-    const prompt = `Analyze the following educational content and extract the main topics that a student could learn and teach to others.
+      // Use Gemini to extract topics from the content
+      const prompt = `Analyze the following educational content and extract the main topics that a student could learn and teach to others.
 
 For each topic:
 1. Give it a clear, concise name (max 5-6 words)
@@ -254,63 +272,56 @@ ${content}
 
 Remember: Return ONLY the JSON array, no other text or markdown formatting.`;
 
-    const result = await geminiFlash.generateContent(prompt);
-    const responseText = result.response.text();
+      const result = await geminiFlash.generateContent(prompt);
+      const responseText = result.response.text();
 
-    // Parse the JSON response
-    let topics;
-    try {
-      // Clean up the response - remove markdown code blocks if present
-      let cleanedResponse = responseText.trim();
-      if (cleanedResponse.startsWith('```json')) {
-        cleanedResponse = cleanedResponse.slice(7);
-      } else if (cleanedResponse.startsWith('```')) {
-        cleanedResponse = cleanedResponse.slice(3);
-      }
-      if (cleanedResponse.endsWith('```')) {
-        cleanedResponse = cleanedResponse.slice(0, -3);
-      }
-      cleanedResponse = cleanedResponse.trim();
+      // Parse the JSON response
+      let topics;
+      try {
+        // Clean up the response - remove markdown code blocks if present
+        let cleanedResponse = responseText.trim();
+        if (cleanedResponse.startsWith('```json')) {
+          cleanedResponse = cleanedResponse.slice(7);
+        } else if (cleanedResponse.startsWith('```')) {
+          cleanedResponse = cleanedResponse.slice(3);
+        }
+        if (cleanedResponse.endsWith('```')) {
+          cleanedResponse = cleanedResponse.slice(0, -3);
+        }
+        cleanedResponse = cleanedResponse.trim();
 
-      topics = JSON.parse(cleanedResponse);
-    } catch (parseError) {
-      console.error('Failed to parse Gemini response:', responseText);
+        topics = JSON.parse(cleanedResponse);
+      } catch (parseError) {
+        console.error('Failed to parse Gemini response:', responseText);
+        return NextResponse.json(
+          { error: 'Failed to parse AI response. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      // Validate and format topics
+      const formattedTopics = topics.map((topic: { name: string; difficulty: string }, index: number) => ({
+        id: String(index + 1),
+        name: topic.name,
+        difficulty: ['easy', 'medium', 'hard'].includes(topic.difficulty) ? topic.difficulty : 'medium',
+        selected: index < 4, // Select first 4 by default
+      }));
+
+      return NextResponse.json({ topics: formattedTopics });
+    } catch (error) {
+      // Catch any error and always return JSON
+      console.error('Topic extraction error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return NextResponse.json(
-        { error: 'Failed to parse AI response. Please try again.' },
+        { error: errorMessage },
         { status: 500 }
       );
     }
-
-    // Validate and format topics
-    const formattedTopics = topics.map((topic: { name: string; difficulty: string }, index: number) => ({
-      id: String(index + 1),
-      name: topic.name,
-      difficulty: ['easy', 'medium', 'hard'].includes(topic.difficulty) ? topic.difficulty : 'medium',
-      selected: index < 4, // Select first 4 by default
-    }));
-
-    return NextResponse.json({ topics: formattedTopics });
-  } catch (error) {
-    console.error('Topic extraction error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    // Provide more specific error messages
-    if (errorMessage.includes('API_KEY') || errorMessage.includes('API key')) {
-      return NextResponse.json(
-        { error: 'Invalid Gemini API key. Please check your GEMINI_API_KEY.' },
-        { status: 500 }
-      );
-    }
-    
-    if (errorMessage.includes('quota') || errorMessage.includes('rate')) {
-      return NextResponse.json(
-        { error: 'API rate limit exceeded. Please try again later.' },
-        { status: 429 }
-      );
-    }
-    
+  } catch (outerError) {
+    // Catch any truly unexpected error (should never return HTML)
+    console.error('Global API error:', outerError);
     return NextResponse.json(
-      { error: `Failed to extract topics: ${errorMessage}` },
+      { error: 'A server error occurred. Please try again or contact support.' },
       { status: 500 }
     );
   }

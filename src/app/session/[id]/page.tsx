@@ -12,7 +12,6 @@ import {
     Target,
     CheckCircle,
     Clock,
-    Lightbulb,
     ThumbsUp,
     RotateCcw,
     Trophy,
@@ -24,7 +23,8 @@ import {
     MessageCircle,
     ChevronRight,
     Flame,
-    GraduationCap
+    GraduationCap,
+    Lightbulb
 } from 'lucide-react';
 
 interface Message {
@@ -47,11 +47,13 @@ function SessionContent() {
     const searchParams = useSearchParams();
     const topicsParam = searchParams.get('topics');
     const personaParam = searchParams.get('persona') || 'curious';
+    const contentParam = searchParams.get('content'); // Get uploaded content
     
     // Parse topics from URL or use default
     const topics = topicsParam ? JSON.parse(decodeURIComponent(topicsParam)) : [];
     const topicNames = topics.map((t: { name: string }) => t.name).join(', ') || 'the topic';
     const mainTopic = topics[0]?.name || 'this topic';
+    const uploadedContent = contentParam ? decodeURIComponent(contentParam) : ''; // Decode content
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
@@ -69,7 +71,6 @@ function SessionContent() {
     const [totalScore, setTotalScore] = useState(0);
     const [sessionTime, setSessionTime] = useState(0);
     const [streak, setStreak] = useState(0);
-    const [showTips, setShowTips] = useState(false);
     const [dbSessionId, setDbSessionId] = useState<string | null>(null);
     const [sessionSaved, setSessionSaved] = useState(false);
 
@@ -162,6 +163,7 @@ function SessionContent() {
                         messages: [{ role: 'user', content: `Start the conversation. You want to learn about: ${topicNames}. Ask your first question to begin.` }],
                         topic: topicNames,
                         persona: personaParam,
+                        uploadedContent: uploadedContent, // Pass the actual content
                     }),
                 });
 
@@ -217,7 +219,8 @@ function SessionContent() {
                 body: JSON.stringify({
                     messages: allMessages,
                     topic: topicNames,
-                    persona: personaParam
+                    persona: personaParam,
+                    uploadedContent: uploadedContent, // Pass content for context
                 }),
             });
 
@@ -328,43 +331,43 @@ function SessionContent() {
         const xpEarned = totalScore * 2;
         
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-4 sm:p-6">
-                <div className="max-w-2xl mx-auto pt-8">
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-3 sm:p-6 safe-area-bottom">
+                <div className="max-w-2xl mx-auto pt-4 sm:pt-8">
                     {/* Confetti effect placeholder */}
                     <div className="card overflow-hidden">
                         {/* Header Banner */}
-                        <div className={`bg-gradient-to-r ${finalGrade.bgColor} p-8 text-center relative`}>
+                        <div className={`bg-gradient-to-r ${finalGrade.bgColor} p-5 sm:p-8 text-center relative`}>
                             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
                             <div className="relative">
-                                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex-center shadow-lg shadow-amber-500/30">
-                                    <Trophy className="w-10 h-10 text-white" />
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex-center shadow-lg shadow-amber-500/30">
+                                    <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                                 </div>
-                                <h1 className="text-3xl font-bold mb-2">Session Complete! 🎉</h1>
-                                <p className="text-secondary">You finished teaching {mainTopic}</p>
+                                <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Session Complete! 🎉</h1>
+                                <p className="text-secondary text-sm sm:text-base truncate px-2">{mainTopic}</p>
                             </div>
                         </div>
 
-                        <div className="p-6 sm:p-8">
+                        <div className="p-4 sm:p-8">
                             {/* Stars Rating */}
-                            <div className="flex justify-center gap-1 mb-6">
+                            <div className="flex justify-center gap-1 mb-4 sm:mb-6">
                                 {[...Array(5)].map((_, i) => (
                                     <Star
                                         key={i}
-                                        className={`w-8 h-8 ${i < finalGrade.stars ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}`}
+                                        className={`w-6 h-6 sm:w-8 sm:h-8 ${i < finalGrade.stars ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}`}
                                     />
                                 ))}
                             </div>
 
                             {/* Main Score */}
-                            <div className="text-center mb-8">
+                            <div className="text-center mb-6 sm:mb-8">
                                 <div className="inline-flex items-baseline gap-2">
-                                    <span className={`text-7xl font-bold ${finalGrade.color}`}>{finalGrade.grade}</span>
+                                    <span className={`text-5xl sm:text-7xl font-bold ${finalGrade.color}`}>{finalGrade.grade}</span>
                                 </div>
-                                <p className="text-xl text-secondary mt-2">{finalGrade.message}</p>
+                                <p className="text-lg sm:text-xl text-secondary mt-2">{finalGrade.message}</p>
                             </div>
 
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
                                 <div className="bg-white/5 rounded-xl p-4 text-center">
                                     <Star className="w-5 h-5 text-purple-400 mx-auto mb-2" />
                                     <div className="text-2xl font-bold">{totalScore}</div>
@@ -485,24 +488,24 @@ function SessionContent() {
                         </div>
 
                         {/* Right: Stats */}
-                        <div className="flex items-center gap-2 sm:gap-3">
-                            {/* Timer */}
-                            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full text-sm">
-                                <Timer className="w-4 h-4 text-secondary" />
+                        <div className="flex items-center gap-1.5 sm:gap-3">
+                            {/* Timer - visible on mobile too */}
+                            <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 bg-white/5 rounded-full text-xs sm:text-sm">
+                                <Timer className="w-3 h-3 sm:w-4 sm:h-4 text-secondary" />
                                 <span className="font-mono">{formatTime(sessionTime)}</span>
                             </div>
 
                             {/* Streak */}
                             {streak > 0 && (
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 rounded-full text-sm">
-                                    <Flame className="w-4 h-4 text-orange-400" />
+                                <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 bg-orange-500/20 rounded-full text-xs sm:text-sm">
+                                    <Flame className="w-3 h-3 sm:w-4 sm:h-4 text-orange-400" />
                                     <span className="font-semibold text-orange-400">{streak}</span>
                                 </div>
                             )}
 
                             {/* Score */}
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 rounded-full">
-                                <Star className="w-4 h-4 text-purple-400" />
+                            <div className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 bg-purple-500/20 rounded-full text-xs sm:text-sm">
+                                <Star className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
                                 <span className="font-semibold">{totalScore}</span>
                             </div>
                         </div>
@@ -529,14 +532,15 @@ function SessionContent() {
                                 {message.score !== undefined ? (
                                     // Score feedback
                                     <div className="flex items-center justify-center gap-2 py-2">
-                                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+                                        <div className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm ${
                                             message.score >= 15 ? 'bg-green-500/20 text-green-400' : 
                                             message.score >= 10 ? 'bg-amber-500/20 text-amber-400' : 
                                             'bg-red-500/20 text-red-400'
                                         }`}>
-                                            <Star className="w-4 h-4" />
-                                            <span className="font-semibold">+{message.score} pts</span>
-                                            <span className="text-sm opacity-80">• {message.feedback}</span>
+                                            <Star className="w-3 h-3 sm:w-4 sm:h-4" />
+                                            <span className="font-semibold">+{message.score}</span>
+                                            <span className="hidden sm:inline">pts</span>
+                                            <span className="opacity-80 truncate max-w-[120px] sm:max-w-none">• {message.feedback}</span>
                                         </div>
                                     </div>
                                 ) : (
@@ -583,117 +587,33 @@ function SessionContent() {
                 </div>
             </main>
 
-            {/* Teaching Tips Button (Mobile) */}
-            <button
-                onClick={() => setShowTips(!showTips)}
-                className="fixed bottom-24 right-4 xl:hidden w-12 h-12 rounded-full bg-amber-500/20 flex-center shadow-lg border border-amber-500/30 z-40"
-            >
-                <Lightbulb className="w-5 h-5 text-amber-400" />
-            </button>
-
-            {/* Teaching Tips Modal (Mobile) */}
-            {showTips && (
-                <div className="fixed inset-0 bg-black/50 z-50 xl:hidden flex items-end" onClick={() => setShowTips(false)}>
-                    <div className="bg-gray-900 w-full rounded-t-2xl p-6 max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <Lightbulb className="w-5 h-5 text-amber-400" />
-                                <span className="font-semibold">Teaching Tips</span>
-                            </div>
-                            <button onClick={() => setShowTips(false)} className="text-secondary">Close</button>
-                        </div>
-                        <ul className="space-y-3 text-sm text-secondary">
-                            <li className="flex items-start gap-2">
-                                <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                                <span>Use simple analogies to explain complex concepts</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                                <span>Break down processes into clear steps</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                                <span>Correct misconceptions patiently</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                                <span>Connect concepts to real-world examples</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            {/* Teaching Tips Sidebar (Desktop) */}
-            <aside className="hidden xl:block fixed right-6 top-1/2 -translate-y-1/2 w-72">
-                <div className="card p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Lightbulb className="w-5 h-5 text-amber-400" />
-                        <span className="font-semibold">Teaching Tips</span>
-                    </div>
-                    <ul className="space-y-3 text-sm text-secondary">
-                        <li className="flex items-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                            <span>Use simple analogies to explain complex concepts</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                            <span>Break down processes into clear steps</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                            <span>Correct misconceptions patiently</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                            <span>Connect concepts to real-world examples</span>
-                        </li>
-                    </ul>
-
-                    {/* Session Stats */}
-                    <div className="mt-4 pt-4 border-t border-white/10">
-                        <div className="text-xs text-secondary mb-2">Session Stats</div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-white/5 rounded-lg p-2 text-center">
-                                <div className="font-semibold">{currentQuestion}</div>
-                                <div className="text-xs text-secondary">Questions</div>
-                            </div>
-                            <div className="bg-white/5 rounded-lg p-2 text-center">
-                                <div className="font-semibold">{formatTime(sessionTime)}</div>
-                                <div className="text-xs text-secondary">Time</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
             {/* Input Area */}
-            <footer className="glass border-t border-white/10 sticky bottom-0">
-                <div className="container max-w-3xl py-3 px-4">
-                    <div className="flex gap-3">
+            <footer className="glass border-t border-white/10 sticky bottom-0 z-50 safe-area-bottom">
+                <div className="container max-w-3xl py-3 px-3 sm:py-4 sm:px-4">
+                    <div className="flex gap-2 sm:gap-3">
                         <div className="flex-1 relative">
                             <textarea
                                 ref={inputRef}
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Explain the concept to your student..."
+                                placeholder="Explain to your student..."
                                 rows={1}
-                                className="input pr-20 resize-none min-h-[48px] max-h-32 text-sm sm:text-base"
+                                className="input pr-12 sm:pr-20 resize-none min-h-[44px] sm:min-h-[48px] max-h-24 sm:max-h-32 text-sm"
                                 style={{ height: 'auto' }}
                                 disabled={isTyping}
                             />
-                            <div className="absolute right-3 bottom-3 flex items-center gap-2 text-xs text-secondary">
-                                <span className="hidden sm:inline">{totalQuestions - currentQuestion + 1} left</span>
+                            <div className="absolute right-2 sm:right-3 bottom-2.5 sm:bottom-3 flex items-center gap-1 text-[10px] sm:text-xs text-secondary">
+                                <span>{totalQuestions - currentQuestion + 1}</span>
                                 <ChevronRight className="w-3 h-3" />
                             </div>
                         </div>
                         <button
                             onClick={handleSend}
                             disabled={!inputValue.trim() || isTyping}
-                            className="btn btn-primary px-4 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed self-end"
+                            className="btn btn-primary px-3 sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed self-end h-[44px] sm:h-auto"
                         >
-                            <Send className="w-5 h-5" />
+                            <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                     </div>
                 </div>

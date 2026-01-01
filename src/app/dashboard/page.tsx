@@ -29,21 +29,8 @@ import {
     Menu,
     X,
     GraduationCap,
-    MessageSquare,
-    BookMarked,
-    Lightbulb
+    MessageSquare
 } from 'lucide-react';
-
-// Mock Learn First sessions - In production, this would come from a hook
-interface LearnFirstSession {
-    id: string;
-    title: string;
-    createdAt: string;
-    flashcardsCount: number;
-    sectionsCount: number;
-    studyDuration: number;
-    startedTeaching: boolean;
-}
 
 export default function DashboardPage() {
     const { profile, loading: profileLoading } = useUserProfile();
@@ -52,9 +39,6 @@ export default function DashboardPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showNotifications, setShowNotifications] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-    // Mock Learn First sessions - Replace with real data from Firestore
-    const [learnFirstSessions] = useState<LearnFirstSession[]>([]);
 
     const isLoading = profileLoading || sessionsLoading;
 
@@ -65,15 +49,6 @@ export default function DashboardPage() {
     const avgScore = completedSessions.length > 0 
         ? Math.round(completedSessions.reduce((sum, s) => sum + s.score, 0) / completedSessions.length)
         : 0;
-
-    // Learn First stats
-    const totalLearnFirstSessions = learnFirstSessions.length;
-    const totalFlashcards = learnFirstSessions.reduce((sum, s) => sum + s.flashcardsCount, 0);
-    const totalStudyTime = learnFirstSessions.reduce((sum, s) => sum + s.studyDuration, 0);
-    const learnFirstToTeaching = learnFirstSessions.filter(s => s.startedTeaching).length;
-
-    // Talk Through stats
-    const totalTalkThroughSessions = sessions.length;
 
     // Weekly activity data (actual current week)
     const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -96,11 +71,7 @@ export default function DashboardPage() {
             const sessionDate = new Date(s.createdAt);
             return sessionDate.toDateString() === targetDateStr;
         });
-        const daysLearnFirst = learnFirstSessions.filter(s => {
-            const sessionDate = new Date(s.createdAt);
-            return sessionDate.toDateString() === targetDateStr;
-        });
-        return Math.min(100, (daysSessions.length + daysLearnFirst.length) * 25);
+        return Math.min(100, daysSessions.length * 25);
     });
 
     // Achievements
@@ -111,17 +82,12 @@ export default function DashboardPage() {
         { id: 4, name: 'Master', icon: '👑', desc: 'Reach Level 5', unlocked: (profile?.level || 1) >= 5 },
     ];
 
-    // Daily goal (2 sessions per day - both types combined)
+    // Daily goal (2 sessions per day)
     const todayStr = today.toDateString();
-    const todayTalkThrough = sessions.filter(s => {
+    const todaySessions = sessions.filter(s => {
         const sessionDate = new Date(s.createdAt);
         return sessionDate.toDateString() === todayStr;
     }).length;
-    const todayLearnFirst = learnFirstSessions.filter(s => {
-        const sessionDate = new Date(s.createdAt);
-        return sessionDate.toDateString() === todayStr;
-    }).length;
-    const todaySessions = todayTalkThrough + todayLearnFirst;
     const dailyGoal = 2;
     const goalProgress = Math.min(100, (todaySessions / dailyGoal) * 100);
 
@@ -343,15 +309,15 @@ export default function DashboardPage() {
                         <div className="text-xs text-secondary">Day Streak 🔥</div>
                     </div>
 
-                    {/* Learn First Sessions */}
+                    {/* Total Points */}
                     <div className="card">
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-10 h-10 rounded-lg bg-green-500/20 flex-center">
-                                <GraduationCap className="w-5 h-5 text-green-400" />
+                                <Trophy className="w-5 h-5 text-green-400" />
                             </div>
                         </div>
-                        <div className="text-2xl font-bold mb-1">{totalLearnFirstSessions}</div>
-                        <div className="text-xs text-secondary">Learn First Sessions</div>
+                        <div className="text-2xl font-bold mb-1">{profile?.totalPoints || 0}</div>
+                        <div className="text-xs text-secondary">Total Points</div>
                     </div>
 
                     {/* Talk Through Sessions */}
@@ -361,8 +327,8 @@ export default function DashboardPage() {
                                 <MessageSquare className="w-5 h-5 text-cyan-400" />
                             </div>
                         </div>
-                        <div className="text-2xl font-bold mb-1">{totalTalkThroughSessions}</div>
-                        <div className="text-xs text-secondary">Talk Through Sessions</div>
+                        <div className="text-2xl font-bold mb-1">{profile?.totalSessions || 0}</div>
+                        <div className="text-xs text-secondary">Sessions Completed</div>
                     </div>
                 </div>
 
@@ -375,7 +341,7 @@ export default function DashboardPage() {
                                 <BookOpen className="w-5 h-5 text-purple-400" />
                             </div>
                             <div>
-                                <div className="text-xl font-bold">{(profile?.totalSessions || 0) + totalLearnFirstSessions}</div>
+                                <div className="text-xl font-bold">{profile?.totalSessions || 0}</div>
                                 <div className="text-xs text-secondary">Total Sessions</div>
                             </div>
                         </div>
@@ -388,34 +354,34 @@ export default function DashboardPage() {
                                 <Star className="w-5 h-5 text-amber-400" />
                             </div>
                             <div>
-                                <div className="text-xl font-bold">{avgScore}%</div>
+                                <div className="text-xl font-bold">{avgScore || 0}</div>
                                 <div className="text-xs text-secondary">Avg. Score</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Flashcards Created */}
+                    {/* Total Points */}
                     <div className="card bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-white/10 flex-center">
-                                <BookMarked className="w-5 h-5 text-green-400" />
+                                <Trophy className="w-5 h-5 text-green-400" />
                             </div>
                             <div>
-                                <div className="text-xl font-bold">{totalFlashcards}</div>
-                                <div className="text-xs text-secondary">Flashcards</div>
+                                <div className="text-xl font-bold">{profile?.totalPoints || 0}</div>
+                                <div className="text-xs text-secondary">Total Points</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Study Time */}
+                    {/* Sessions Completed */}
                     <div className="card bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/20">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-white/10 flex-center">
-                                <Clock className="w-5 h-5 text-cyan-400" />
+                                <Target className="w-5 h-5 text-cyan-400" />
                             </div>
                             <div>
-                                <div className="text-xl font-bold">{totalStudyTime}</div>
-                                <div className="text-xs text-secondary">Mins Studied</div>
+                                <div className="text-xl font-bold">{profile?.totalSessions || 0}</div>
+                                <div className="text-xs text-secondary">Sessions</div>
                             </div>
                         </div>
                     </div>
@@ -493,11 +459,11 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4 text-sm text-secondary">
                                 <span className="flex items-center gap-1">
-                                    <BookMarked className="w-4 h-4" />
+                                    <BookOpen className="w-4 h-4" />
                                     Notes
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <Lightbulb className="w-4 h-4" />
+                                    <Sparkles className="w-4 h-4" />
                                     Flashcards
                                 </span>
                             </div>
@@ -569,56 +535,12 @@ export default function DashboardPage() {
 
                 {/* Recent Sessions */}
                 <div className="grid lg:grid-cols-2 gap-6">
-                    {/* Recent Learn First */}
-                    <div className="card">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold flex items-center gap-2">
-                                <GraduationCap className="w-5 h-5 text-green-400" />
-                                Recent Learn First
-                            </h3>
-                            <Link href="/sessions" className="text-sm text-green-400 hover:underline">View All</Link>
-                        </div>
-                        {learnFirstSessions.length === 0 ? (
-                            <div className="text-center py-6 text-secondary">
-                                <BookMarked className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                                <p className="text-sm mb-3">No study sessions yet</p>
-                                <Link href="/learn" className="btn btn-sm" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                                    <GraduationCap className="w-4 h-4" />
-                                    Start Learning
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {learnFirstSessions.slice(0, 3).map((session) => (
-                                    <div key={session.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex-center">
-                                                <BookMarked className="w-5 h-5 text-green-400" />
-                                            </div>
-                                            <div>
-                                                <div className="font-medium text-sm">{session.title}</div>
-                                                <div className="text-xs text-secondary">
-                                                    {session.flashcardsCount} flashcards • {session.studyDuration} min
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {session.startedTeaching ? (
-                                            <span className="badge bg-green-500/20 text-green-400 text-xs">Teaching</span>
-                                        ) : (
-                                            <span className="badge bg-amber-500/20 text-amber-400 text-xs">Studying</span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Recent Talk Through */}
+                    {/* Recent Teaching Sessions */}
                     <div className="card">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-semibold flex items-center gap-2">
                                 <MessageSquare className="w-5 h-5 text-purple-400" />
-                                Recent Talk Through
+                                Recent Teaching Sessions
                             </h3>
                             <Link href="/sessions" className="text-sm text-purple-400 hover:underline">View All</Link>
                         </div>
@@ -633,7 +555,7 @@ export default function DashboardPage() {
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {sessions.slice(0, 3).map((session) => (
+                                {sessions.slice(0, 4).map((session) => (
                                     <Link href={`/session/${session.id}`} key={session.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex-center">
@@ -642,18 +564,65 @@ export default function DashboardPage() {
                                             <div>
                                                 <div className="font-medium text-sm">{session.topic}</div>
                                                 <div className="text-xs text-secondary">
-                                                    <span className="badge text-xs mr-2">{session.subject}</span>
                                                     {new Date(session.createdAt).toLocaleDateString()}
                                                 </div>
                                             </div>
                                         </div>
                                         <span className={`font-semibold ${session.score >= 80 ? 'text-green-400' : session.score >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
-                                            {session.score}%
+                                            {session.score} pts
                                         </span>
                                     </Link>
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    {/* Quick Start */}
+                    <div className="card">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold flex items-center gap-2">
+                                <Zap className="w-5 h-5 text-amber-400" />
+                                Quick Start
+                            </h3>
+                        </div>
+                        <div className="space-y-3">
+                            <Link href="/learn" className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl hover:bg-green-500/20 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex-center">
+                                        <GraduationCap className="w-5 h-5 text-green-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium">Learn First</div>
+                                        <div className="text-xs text-secondary">Study with AI-generated notes</div>
+                                    </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-green-400" />
+                            </Link>
+                            <Link href="/upload" className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/20 rounded-xl hover:bg-purple-500/20 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex-center">
+                                        <Upload className="w-5 h-5 text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium">Talk Through</div>
+                                        <div className="text-xs text-secondary">Teach what you know to AI</div>
+                                    </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-purple-400" />
+                            </Link>
+                            <Link href="/leaderboard" className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex-center">
+                                        <Trophy className="w-5 h-5 text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium">Leaderboard</div>
+                                        <div className="text-xs text-secondary">See top learners</div>
+                                    </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-amber-400" />
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </main>
