@@ -39,7 +39,8 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
           const viewport = page.getViewport({ scale: 2.0 });
           const canvas = createCanvas(viewport.width, viewport.height);
           const context = canvas.getContext('2d');
-          const renderContext = { canvasContext: context, canvas, viewport };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const renderContext = { canvasContext: context, canvas, viewport } as any;
           await page.render(renderContext).promise;
           const imageBuffer = canvas.toBuffer('image/png');
           const { data: { text } } = await Tesseract.recognize(imageBuffer, 'eng');
